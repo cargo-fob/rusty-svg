@@ -1,0 +1,4 @@
+input = "icons"
+output = "components"
+typescript = true
+prefix = "Icon"
