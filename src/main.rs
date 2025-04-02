@@ -104,12 +104,19 @@ fn main() -> std::io::Result<()> {
         .filter(|e| e.path().extension().map_or(false, |ext| ext == "svg"))
     {
         let svg_path = entry.path();
-        println!("svg 경로: {:?}", &svg_path);
+        // println!("svg 경로: {:?}", &svg_path);
 
         let svg_content = fs::read_to_string(svg_path)?;
-        println!("svg_content: {:?}", &svg_content);
+        // println!("svg_content: {:?}", &svg_content);
 
-        let file_stem = svg_path.file_stem().unwrap().to_string_lossy();
+        let file_stem = match svg_path.file_stem() {
+            Some(stem,) => stem.to_string_lossy(),
+            None => {
+                println!("❌ Invalid file name: {:?}", svg_path);
+                "unknown".into()
+            }
+        };
+        println!("🔍 Processing: {}", file_stem);
         let component_name = format!("{}{}", prefix, file_stem.to_case(Case::Pascal));
         let ext = if use_ts { "tsx" } else { "jsx" };
 
