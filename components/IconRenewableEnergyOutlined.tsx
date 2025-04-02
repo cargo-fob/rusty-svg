@@ -1,6 +1,8 @@
 import React from 'react';
 
-const IconRenewableEnergyOutlined = (props) => (
+type Props = React.SVGProps<SVGSVGElement>;
+
+const IconRenewableEnergyOutlined = (props: Props) => (
   <svg
     {...props}
     width="14"

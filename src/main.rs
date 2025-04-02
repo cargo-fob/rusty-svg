@@ -87,8 +87,24 @@ fn main() -> std::io::Result<()> {
         let component_name = format!("Icon{}", file_stem.to_case(Case::Pascal));
         let ext = if use_ts { "tsx" } else { "jsx" };
 
-        let component_code = format!(
-            r#"import React from 'react';
+        let component_code = if use_ts {
+            format!(
+                r#"import React from 'react';
+
+type Props = React.SVGProps<SVGSVGElement>;
+
+const {name} = (props: Props) => (
+    {svg}
+);
+
+export default {name};
+"#,
+                name = component_name,
+                svg = svg_content.replace("<svg", "<svg {...props}")
+            )
+        } else {
+            format!(
+                r#"import React from 'react';
 
 const {name} = (props) => (
     {svg}
@@ -96,9 +112,10 @@ const {name} = (props) => (
 
 export default {name};
 "#,
-            name = component_name,
-            svg = svg_content.replace("<svg", "<svg {...props}")
-        );
+                name = component_name,
+                svg = svg_content.replace("<svg", "<svg {...props}")
+            )
+        };
 
         let out_file = output_path.join(format!("{}.{}", component_name, ext));
         fs::write(out_file, component_code)?;
