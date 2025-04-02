@@ -1,19 +1,21 @@
 use clap::Parser;
+use inquire::{Text, Select};
 use std::{fs, path::PathBuf};
 use walkdir::WalkDir;
 use convert_case::{Casing, Case};
 
-#[derive(Parser)]
+#[derive(Parser, Debug)]
+#[command(name = "rusty-svg")]
 struct Args {
-    /// Input directory containing SVG files
+    /// Input directory
     #[arg(short, long)]
-    input: String,
+    input: Option<String>,
 
-    /// Output directory to save React components
+    /// Output directory
     #[arg(short, long)]
-    output: String,
+    output: Option<String>,
 
-    /// Use TypeScript (.tsx) instead of .jsx
+    /// Use TypeScript
     #[arg(long)]
     typescript: bool,
 }
@@ -21,16 +23,60 @@ struct Args {
 fn main() -> std::io::Result<()> {
     let args = Args::parse();
 
-    let input_path = PathBuf::from(&args.input);
-    let output_path = PathBuf::from(&args.output);
+    let input_given = args.input.is_some();
+    let output_given = args.output.is_some();
+
+    // Input 디렉토리 처리
+    let input = args.input.unwrap_or_else(|| {
+        Text::new("Input folder?")
+            .with_placeholder("icons")
+            .prompt()
+            .unwrap_or("icons".to_string())
+    });
+
+    // Output 디렉토리 처리
+    let output = args.output.unwrap_or_else(|| {
+        Text::new("Output folder?")
+            .with_placeholder("components")
+            .prompt()
+            .unwrap_or("components".to_string())
+    });
+
+    let output_path = PathBuf::from(&output);
+    if output_path.exists() {
+        let overwrite = Select::new(
+            "Output folder already exists. Overwrite?",
+            vec!["Yes", "No"]
+        )
+        .with_starting_cursor(1)
+        .prompt()
+        .unwrap_or("No") == "Yes";
+
+        if !overwrite {
+            println!("❌ Operation canceled.");
+            return Ok(());
+        }
+        fs::remove_dir_all(&output_path)?;
+    }
     fs::create_dir_all(&output_path)?;
 
+    // 타입스크립트 여부
+    let use_ts = if input_given && output_given {
+        args.typescript
+    } else {
+        Select::new("Use TypeScript?", vec!["Yes", "No"])
+            .with_starting_cursor(0)
+            .prompt()
+            .unwrap_or("No") == "Yes"
+    };
+
+    // SVG 파일 처리
+    let input_path = PathBuf::from(&input);
     for entry in WalkDir::new(&input_path)
         .into_iter()
         .filter_map(Result::ok)
         .filter(|e| e.path().extension().map_or(false, |ext| ext == "svg"))
     {
-        
         let svg_path = entry.path();
         println!("svg 경로: {:?}", &svg_path);
 
@@ -39,12 +85,12 @@ fn main() -> std::io::Result<()> {
 
         let file_stem = svg_path.file_stem().unwrap().to_string_lossy();
         let component_name = format!("Icon{}", file_stem.to_case(Case::Pascal));
-        let ext = if args.typescript { "tsx" } else { "jsx" };
+        let ext = if use_ts { "tsx" } else { "jsx" };
 
         let component_code = format!(
             r#"import React from 'react';
 
-const {name} = () => (
+const {name} = (props) => (
     {svg}
 );
 
