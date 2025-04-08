@@ -9,11 +9,11 @@ use serde::Deserialize;
 #[command(name = "rusty-svg")]
 struct Args {
     /// Input directory
-    #[arg(short, long)]
+    #[arg(short, long, required = false)]
     input: Option<String>,
 
     /// Output directory
-    #[arg(short, long)]
+    #[arg(short, long, required = false)]
     output: Option<String>,
 
     /// Use TypeScript
