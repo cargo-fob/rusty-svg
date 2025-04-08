@@ -1,0 +1,27 @@
+{
+  "name": "rusty-react-svg",
+  "version": "1.0.0",
+  "description": "Convert SVG files into React components (TypeScript or JavaScript) with ease.   Supports interactive CLI and configuration via `rusty-svg.config.toml`.",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "svg",
+    "react",
+    "cli",
+    "typescript",
+    "rust"
+  ],
+  "author": {
+    "name": "Jaeha Lee",
+    "email": "wogkdkrm112@gmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cargo-fob/rusty-svg"
+  },
+  "license": "MIT",
+  "bin": {
+    "rusty-svg": "./bin/rusty-svg"
+  }
+}
