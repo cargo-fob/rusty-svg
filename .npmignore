@@ -1,4 +1,8 @@
-/target
-/src
-/Cargo.lock
-/Cargo.toml
+target/
+src/
+icons/
+tests/
+Cargo.lock
+Cargo.toml
+rusty-svg.config.toml
+README.template.md
