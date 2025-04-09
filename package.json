@@ -1,6 +1,6 @@
 {
   "name": "rusty-react-svg",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Convert SVG files into React components (TypeScript or JavaScript) with ease.   Supports interactive CLI and configuration via `rusty-svg.config.toml`.",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
