@@ -1,9 +1,11 @@
 use clap::Parser;
 use inquire::{Text, Select};
+use regex::Regex;
 use std::{fs, path::PathBuf};
 use walkdir::WalkDir;
 use convert_case::{Casing, Case};
 use serde::Deserialize;
+use anyhow::Result;
 
 #[derive(Parser, Debug)]
 #[command(name = "rusty-svg")]
@@ -26,10 +28,10 @@ struct Config {
     input: Option<String>,
     output: Option<String>,
     typescript: Option<bool>,
-    prefix: Option<String>,
+    case: Option<String>,
 }
 
-fn main() -> std::io::Result<()> {
+fn main() -> Result<()> {
     let args = Args::parse();
 
     let config: Option<Config> = fs::read_to_string("rusty-svg.config.toml")
@@ -39,24 +41,22 @@ fn main() -> std::io::Result<()> {
     let input_given = args.input.is_some();
     let output_given = args.output.is_some();
 
-    // Input 디렉토리 처리
     let input = args.input
         .or_else(|| config.as_ref().and_then(|c| c.input.clone()))
         .unwrap_or_else(|| {
             Text::new("Input folder?")
                 .with_placeholder("icons")
                 .prompt()
-                .unwrap_or("icons".to_string())
+                .unwrap_or_else(|_| "icons".to_string())
         });
 
-    // Output 디렉토리 처리
     let output = args.output
         .or_else(|| config.as_ref().and_then(|c| c.output.clone()))
         .unwrap_or_else(|| {
             Text::new("Output folder?")
                 .with_placeholder("components")
                 .prompt()
-                .unwrap_or("components".to_string())
+                .unwrap_or_else(|_| "components".to_string())
         });
 
     let output_path = PathBuf::from(&output);
@@ -65,9 +65,9 @@ fn main() -> std::io::Result<()> {
             "Output folder already exists. Overwrite?",
             vec!["Yes", "No"]
         )
-        .with_starting_cursor(1)
-        .prompt()
-        .unwrap_or("No") == "Yes";
+            .with_starting_cursor(1)
+            .prompt()
+            .unwrap_or("No") == "Yes";
 
         if !overwrite {
             println!("❌ Operation canceled.");
@@ -77,26 +77,28 @@ fn main() -> std::io::Result<()> {
     }
     fs::create_dir_all(&output_path)?;
 
-    // 타입스크립트 여부
     let use_ts = if input_given && output_given {
         args.typescript
     } else {
         args.typescript
             || config.as_ref().and_then(|c| c.typescript).unwrap_or_else(|| {
-                Select::new("Use TypeScript?", vec!["Yes", "No"])
-                    .with_starting_cursor(0)
-                    .prompt()
-                    .unwrap_or("No")
-                    == "Yes"
-            })
+            Select::new("Use TypeScript?", vec!["Yes", "No"])
+                .with_starting_cursor(0)
+                .prompt()
+                .unwrap_or("No") == "Yes"
+        })
     };
 
-    let prefix = config
+    let case_style = config
         .as_ref()
-        .and_then(|c| c.prefix.clone())
-        .unwrap_or_else(|| "Icon".to_string());
+        .and_then(|c| c.case.clone())
+        .unwrap_or_else(|| {
+            Select::new("Component filename casing?", vec!["PascalCase", "kebab-case"])
+                .with_starting_cursor(0)
+                .prompt()
+                .unwrap_or_else(|_| "PascalCase").to_owned()
+        });
 
-    // SVG 파일 처리
     let input_path = PathBuf::from(&input);
     for entry in WalkDir::new(&input_path)
         .into_iter()
@@ -104,21 +106,76 @@ fn main() -> std::io::Result<()> {
         .filter(|e| e.path().extension().map_or(false, |ext| ext == "svg"))
     {
         let svg_path = entry.path();
-        // println!("svg 경로: {:?}", &svg_path);
-
         let svg_content = fs::read_to_string(svg_path)?;
-        // println!("svg_content: {:?}", &svg_content);
 
         let file_stem = match svg_path.file_stem() {
-            Some(stem,) => stem.to_string_lossy(),
+            Some(stem) => stem.to_string_lossy(),
             None => {
                 println!("❌ Invalid file name: {:?}", svg_path);
                 "unknown".into()
             }
         };
+
         println!("🔍 Processing: {}", file_stem);
-        let component_name = format!("{}{}", prefix, file_stem.to_case(Case::Pascal));
+
+        let file_name = match case_style.as_str() {
+            "PascalCase" => file_stem.to_case(Case::Pascal),
+            "kebab-case" => file_stem.to_case(Case::Kebab),
+            _ => file_stem.to_case(Case::Pascal),
+        };
+
+        let component_name = file_stem.to_case(Case::Pascal);
         let ext = if use_ts { "tsx" } else { "jsx" };
+
+        // 🧠 Process the <svg ...> tag and extract original attributes
+        let svg_tag_regex = Regex::new(r#"<svg([^>]*)>"#)?;
+
+        // Extract original attributes from SVG tag
+        let mut width = "24";
+        let mut height = "24";
+        let mut view_box = "0 0 24 24";
+
+        if let Some(captures) = svg_tag_regex.captures(&svg_content) {
+            if let Some(attrs) = captures.get(1) {
+                let attrs_str = attrs.as_str();
+
+                if let Some(w_cap) = Regex::new(r#"width="([^"]*)""#)?.captures(attrs_str) {
+                    width = w_cap.get(1).unwrap().as_str();
+                }
+
+                if let Some(h_cap) = Regex::new(r#"height="([^"]*)""#)?.captures(attrs_str) {
+                    height = h_cap.get(1).unwrap().as_str();
+                }
+
+                if let Some(vb_cap) = Regex::new(r#"viewBox="([^"]*)""#)?.captures(attrs_str) {
+                    view_box = vb_cap.get(1).unwrap().as_str();
+                }
+            }
+        }
+
+        let new_svg_tag = format!(
+            r#"<svg width="{}" height="{}" viewBox="{}" xmlns="http://www.w3.org/2000/svg" {{...props}}>"#,
+            width, height, view_box
+        );
+
+        let mut cleaned_svg = svg_tag_regex
+            .replace(&svg_content, &new_svg_tag)
+            .to_string();
+
+        let fill_regex = Regex::new(r#"fill="([^"]*)""#)?;
+        cleaned_svg = fill_regex.replace_all(&cleaned_svg, r#"fill={props.fill || "$1" || "currentColor"}"#).to_string();
+
+        cleaned_svg = cleaned_svg
+            .replace("fill-rule", "fillRule")
+            .replace("clip-rule", "clipRule")
+            .replace("stroke-width", "strokeWidth")
+            .replace("stroke-linecap", "strokeLinecap")
+            .replace("stroke-linejoin", "strokeLinejoin")
+            .replace("stroke-miterlimit", "strokeMiterlimit")
+            .replace("stroke-dasharray", "strokeDasharray")
+            .replace("stroke-dashoffset", "strokeDashoffset")
+            .replace("stroke-opacity", "strokeOpacity")
+            .replace("fill-opacity", "fillOpacity");
 
         let component_code = if use_ts {
             format!(
@@ -127,32 +184,32 @@ fn main() -> std::io::Result<()> {
 type Props = React.SVGProps<SVGSVGElement>;
 
 const {name} = (props: Props) => (
-    {svg}
+  {svg}
 );
 
 export default {name};
 "#,
                 name = component_name,
-                svg = svg_content.replace("<svg", "<svg {...props}")
+                svg = cleaned_svg
             )
         } else {
             format!(
                 r#"import React from 'react';
 
 const {name} = (props) => (
-    {svg}
+  {svg}
 );
 
 export default {name};
 "#,
                 name = component_name,
-                svg = svg_content.replace("<svg", "<svg {...props}")
+                svg = cleaned_svg
             )
         };
 
-        let out_file = output_path.join(format!("{}.{}", component_name, ext));
+        let out_file = output_path.join(format!("{}.{}", file_name, ext));
         fs::write(out_file, component_code)?;
-        println!("✔️ Generated: {}", component_name);
+        println!("✔️ Generated: {} => {}.{}", component_name, file_name, ext);
     }
 
     Ok(())

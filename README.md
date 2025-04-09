@@ -18,7 +18,7 @@ Supports interactive CLI and configuration via `rusty-svg.config.toml`.
 ## 🚀 Installation
 
 ```bash
-cargo install rusty-svg
+npm i -D rusty-react-svg
 ```
 
 ## 🧪 Usage
