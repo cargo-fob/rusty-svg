@@ -103,7 +103,11 @@ fn main() -> Result<()> {
     for entry in WalkDir::new(&input_path)
         .into_iter()
         .filter_map(Result::ok)
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "svg"))
+        .filter(|e| e
+            .path()
+            .extension()
+            .map_or(false, |ext| ext == "svg")
+        )
     {
         let svg_path = entry.path();
         let svg_content = fs::read_to_string(svg_path)?;
@@ -127,10 +131,8 @@ fn main() -> Result<()> {
         let component_name = file_stem.to_case(Case::Pascal);
         let ext = if use_ts { "tsx" } else { "jsx" };
 
-        // 🧠 Process the <svg ...> tag and extract original attributes
         let svg_tag_regex = Regex::new(r#"<svg([^>]*)>"#)?;
 
-        // Extract original attributes from SVG tag
         let mut width = "24";
         let mut height = "24";
         let mut view_box = "0 0 24 24";
