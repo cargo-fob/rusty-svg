@@ -2,7 +2,6 @@
 
 Convert SVG files into React components (TypeScript or JavaScript) with ease.  
 Supports interactive CLI and configuration via `rusty-svg.config.toml`.
-
 ---
 
 ## ✨ Features
