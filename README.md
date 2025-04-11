@@ -1,5 +1,9 @@
 # rusty-svg
 
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/27a5badc-8d8a-4d36-be83-19bce1c22cf1" width="300" height="300" />
+</p>
+
 Convert SVG files into React components (TypeScript or JavaScript) with ease.  
 Supports interactive CLI and configuration via `rusty-svg.config.toml`.
 ---
