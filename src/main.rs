@@ -165,7 +165,7 @@ fn main() -> Result<()> {
             .to_string();
 
         let fill_regex = Regex::new(r#"fill="([^"]*)""#)?;
-        cleaned_svg = fill_regex.replace_all(&cleaned_svg, r#"fill={props.fill || "$1" || "currentColor"}"#).to_string();
+        cleaned_svg = fill_regex.replace_all(&cleaned_svg, r#"fill={props.fill || "$1"}"#).to_string();
 
         cleaned_svg = cleaned_svg
             .replace("fill-rule", "fillRule")
